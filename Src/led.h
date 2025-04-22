@@ -19,6 +19,9 @@
 #define ON 1
 #define OFF 0
 
+#define ULED 0
+#define ELED 1
+
 /*
  * @breif Initializes the LEDS
  *
@@ -33,6 +36,6 @@ void init_led();
  *
  * @return void
  */
-void set_led(int state);
+void set_led(int id, int state);
 
 #endif
