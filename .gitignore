@@ -1,0 +1,8 @@
+*.DS_Store
+.cproject
+.idea/
+.metadata/
+.project
+.settings/
+Debug/
+Embedded-Final-Project-v2 Debug.launch
