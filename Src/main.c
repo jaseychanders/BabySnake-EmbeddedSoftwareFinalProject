@@ -28,6 +28,20 @@
 #include <stdbool.h>
 #include "log.h"
 #include "led.h"
+#include "switch.h"
+/*
+ * Pinout
+ *
+      MicroOLED ------------- STM32F091RC
+      GND ------------------- GND
+      VDD ------------------- 3.3V (VCC)
+    D1/MOSI ----------------- D11
+    D0/SCK ------------------ D13 (don't change)
+      D2
+      D/C ------------------- D8 (can be any digital pin)
+      RST ------------------- D9 (can be any digital pin)
+      CS  ------------------- D10 (can be any digital pin)
+ */
 
 void Init_SPI1(void) {
 	// Clock gating for SPI1 and GPIO A and B
@@ -37,16 +51,16 @@ void Init_SPI1(void) {
 	// Set mode field to 2 for alternate function
 	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER15, ESF_GPIO_MODER_ALT_FUNC);
 	// Select SPI1 (AF = 0) for alternate function
-	MODIFY_FIELD(GPIOA->AFR[1], GPIO_AFRH_AFSEL15, 0);
+	MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRH_AFSEL15, 0);
 	// GPIO B pin 3, 4, 5 in alternate function 0 (SPI1) for SCK, MISO, MOSI
 	// Set each mode field to 2 for alternate function
-	MODIFY_FIELD(GPIOB->MODER, GPIO_MODER_MODER3, 2);
-	MODIFY_FIELD(GPIOB->MODER, GPIO_MODER_MODER4, 2);
-	MODIFY_FIELD(GPIOB->MODER, GPIO_MODER_MODER5, 2);
+	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER5, 2);
+	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER6, 2);
+	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER7, 2);
 	// Select SPI1 (AF = 0) for alternate function
-	MODIFY_FIELD(GPIOB->AFR[0], GPIO_AFRL_AFSEL3, 0);
-	MODIFY_FIELD(GPIOB->AFR[0], GPIO_AFRL_AFSEL4, 0);
-	MODIFY_FIELD(GPIOB->AFR[0], GPIO_AFRL_AFSEL5, 0);
+	MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRL_AFSEL5, 0);
+	MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRL_AFSEL6, 0);
+	MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRL_AFSEL7, 0);
 	// Clock is divided by 16 (2^(BR+1))
 	MODIFY_FIELD(SPI1->CR1, SPI_CR1_BR, 3);
 	MODIFY_FIELD(SPI1->CR1, SPI_CR1_MSTR, 1); // Master mode
@@ -88,7 +102,7 @@ void Test_SPI_Loopback(void) {
 	uint8_t in;
 	while (1) {
 		in = SPI_Send_Receive_Byte(out);
-		 printf("out = %i, in = %i\r\n", out, in);
+		// printf("out = %i, in = %i\r\n", out, in);
 
 		 if (in != out){ // Red: error, data does not match
 			 set_led(ELED, ON);
@@ -100,6 +114,35 @@ void Test_SPI_Loopback(void) {
 			 out = 'A';
 	}
 }
+
+/*
+ * @breif   : User switch triggered interrupt
+ * 			: Triggers on rising and falling edge of button
+ * 			: Code modified from Dean 4.8, 4.9 4.12
+ * @param   : void
+ * @return  : void
+ */
+//void EXTI4_15_IRQHandler(void) {
+//	//Get g_state of enable/disable for interrupts
+//	uint32_t masking_g_state = __get_PRIMASK();
+//	__disable_irq();
+//	//Check for rising edge
+//	if ((EXTI->PR & SWITCH_PIN_MASK) != 0) {
+//		EXTI->PR = SWITCH_PIN_MASK; // clear pending request
+//		if (get_switch_state()) {
+//			set_led(ELED, ON);
+//			printf("button pressed\r\n");
+//
+//		} else { //Falling edge
+//			set_led(ELED, OFF);
+//			printf("button released\r\n");
+//		}
+//	}
+//	// Clear all other pending requests for this handler
+//	EXTI->PR = 0x0000fff0;
+//	//Return to previous g_state of enable/disable for interrupts
+//	__set_PRIMASK(masking_g_state);
+//}
 
 
 
@@ -114,6 +157,7 @@ int main(void)
 	init_led();
 	Init_SPI1();
 	Test_SPI_Loopback();
+	//init_switch();
 
 	for(;;);
 
