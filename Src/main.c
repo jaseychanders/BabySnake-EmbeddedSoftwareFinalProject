@@ -1,164 +1,257 @@
-/**
- ******************************************************************************
- * @file           : main.c
- * @author         : Jasey Chanders
- * @brief          : Transitions a status LED for an airport train through three stations:
- * 				   : T (terminal), A (Concourse), S (Storage). LEDs blink when
- * 				   : in a station and fade between station brightness levels
- * 				   : when traveling. At any point an emergency button can be pressed
- * 				   : which 'pauses' the train wherever it is and blinks the LED until
- * 				   : the button is released and the train returns to normal operation from
- * 				   : wherever it was paused.
- ******************************************************************************
- * @attention
- *
- * Copyright (c) 2023 STMicroelectronics.
- * All rights reserved.
- *
- * This software is licensed under terms that can be found in the LICENSE file
- * in the root directory of this software component.
- * If no LICENSE file comes with this software, it is provided AS-IS.
- *
- ******************************************************************************
- */
-
-#include <stdio.h>
 #include "stm32f0xx.h"
 #include "utilities.h"
-#include <stdbool.h>
-#include "log.h"
-#include "led.h"
-#include "switch.h"
-/*
- * Pinout
- *
-      MicroOLED ------------- STM32F091RC
-      GND ------------------- GND
-      VDD ------------------- 3.3V (VCC)
-    D1/MOSI ----------------- D11
-    D0/SCK ------------------ D13 (don't change)
-      D2
-      D/C ------------------- D8 (can be any digital pin)
-      RST ------------------- D9 (can be any digital pin)
-      CS  ------------------- D10 (can be any digital pin)
- */
 
-void Init_SPI1(void) {
-	// Clock gating for SPI1 and GPIO A and B
-	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
-	RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN;
-	// GPIO A pin 15 in alternate function 0 (SPI1) for NSS
-	// Set mode field to 2 for alternate function
-	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER15, ESF_GPIO_MODER_ALT_FUNC);
-	// Select SPI1 (AF = 0) for alternate function
-	MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRH_AFSEL15, 0);
+#define SS_LOW_MSK (GPIO_BSRR_BR_15)
+#define SS_HIGH_MSK (GPIO_BSRR_BS_15)
+
+
+void OLED_SPI_Pins_Init()
+{
+	RCC->AHBENR|=RCC_AHBENR_GPIOAEN; //enable clock for GPIOA
+	RCC->AHBENR|=RCC_AHBENR_GPIOBEN; //enable clock for GPIOA
+
+	//set PA5, PA6 and PA7 to alternate function mode
+//	GPIOA->MODER |= GPIO_MODER_MODE5_1 | GPIO_MODER_MODE6_1|GPIO_MODER_MODE7_1;
+//	GPIOA->MODER &=~(GPIO_MODER_MODE5_0|GPIO_MODER_MODE6_0|GPIO_MODER_MODE7_0);
+
 	// GPIO B pin 3, 4, 5 in alternate function 0 (SPI1) for SCK, MISO, MOSI
 	// Set each mode field to 2 for alternate function
-	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER5, 2);
-	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER6, 2);
-	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER7, 2);
+	MODIFY_FIELD(GPIOB->MODER, GPIO_MODER_MODER3, 2);
+	MODIFY_FIELD(GPIOB->MODER, GPIO_MODER_MODER4, 2);
+	MODIFY_FIELD(GPIOB->MODER, GPIO_MODER_MODER5, 2);
 	// Select SPI1 (AF = 0) for alternate function
-	MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRL_AFSEL5, 0);
-	MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRL_AFSEL6, 0);
-	MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRL_AFSEL7, 0);
-	// Clock is divided by 16 (2^(BR+1))
-	MODIFY_FIELD(SPI1->CR1, SPI_CR1_BR, 3);
-	MODIFY_FIELD(SPI1->CR1, SPI_CR1_MSTR, 1); // Master mode
-	// Select first edge sample, active high clock
-	MODIFY_FIELD(SPI1->CR1, SPI_CR1_CPHA, 0);
-	MODIFY_FIELD(SPI1->CR1, SPI_CR1_CPOL, 1);
-	// Data is LSB first
-	MODIFY_FIELD(SPI1->CR1, SPI_CR1_LSBFIRST, 1);
-	// Data is 8 bits long
-	MODIFY_FIELD(SPI1->CR2, SPI_CR2_DS, 7);
-	// RXNE when at least 1 byte in RX FIFO
-	MODIFY_FIELD(SPI1->CR2, SPI_CR2_FRXTH, 1);
-	// Have NSS pin asserted automatically
-	MODIFY_FIELD(SPI1->CR2, SPI_CR2_NSSP, 1);
-	// Enable SPI
-	MODIFY_FIELD(SPI1->CR1, SPI_CR1_SPE, 1);
+	MODIFY_FIELD(GPIOB->AFR[0], GPIO_AFRL_AFSEL3, 0);
+	MODIFY_FIELD(GPIOB->AFR[0], GPIO_AFRL_AFSEL4, 0);
+	MODIFY_FIELD(GPIOB->AFR[0], GPIO_AFRL_AFSEL5, 0);
+
+	//Chip Select
+	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER15, ESF_GPIO_MODER_OUTPUT);
+	//MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRH_AFSEL15, 0);
+
+
+
+//	//Set PA9 and PA10 as Output
+//	GPIOA->MODER|=GPIO_MODER_MODE9_0|GPIO_MODER_MODE10_0;
+//	GPIOA->MODER&=~(GPIO_MODER_MODE9_1|GPIO_MODER_MODE10_1);
+
+	/*select which AF for PA5, PA6 and PA7*/
+	//GPIOA->AFR[0]|=(0x05<<20)|(0x05<<24)|(0x05<<28);
 }
 
-uint8_t SPI_Send_Receive_Byte(uint8_t d_out) {
-	uint8_t d_in;
-	// Wait until transmitter buffer is empty
-	while ((SPI1->SR & SPI_SR_TXE) == 0)
-		 ;
-	// Transmit d_ out
-	// Must tell compiler to use a byte write (not half- word)
-	// by casting SPI1- >DR into a pointer to a byte (uint8_ t).
-	// See STM32F0 Snippets (SPI_ 01_ FullDuplexCommunications).
-	*((uint8_t *)&(SPI1->DR)) = d_out;
-	// Wait until receiver is not empty
-	while ((SPI1->SR & SPI_SR_RXNE) == 0)
-		 ;
-	// Get d_ in
-	d_in = (uint8_t) SPI1->DR;
-	return d_in;
-};
+void OLED_SPI_Configure()
+{
+	/*Enable clock access to SPI1 module*/
+		RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 
-void Test_SPI_Loopback(void) {
-	uint8_t out = 'A';
-	uint8_t in;
-	while (1) {
-		in = SPI_Send_Receive_Byte(out);
-		// printf("out = %i, in = %i\r\n", out, in);
+		/*Set clock to fPCLK/2*/
+		SPI1->CR1 &=~(1U<<3);
+		SPI1->CR1 &=~(1U<<4);
+		SPI1->CR1 &=~(1U<<5);
 
-		 if (in != out){ // Red: error, data does not match
-			 set_led(ELED, ON);
-		 }else{			 // Green: data matches
-			 set_led(ULED, ON);
-		 }
-			 out++;
-		 if (out > 'z')
-			 out = 'A';
+		/*Enable full duplex*/
+		SPI1->CR1 &=~(1U<<10);
+
+		/*Set MSB first*/
+		SPI1->CR1 &= ~(1U<<7);
+
+		// Select first edge sample, active high clock
+		MODIFY_FIELD(SPI1->CR1, SPI_CR1_CPHA, 1);
+		MODIFY_FIELD(SPI1->CR1, SPI_CR1_CPOL, 1);
+
+		/*Set mode to MASTER*/
+		SPI1->CR1 |= (1U<<2);
+
+		/*Set 8 bit data mode*/
+		SPI1->CR1 &= ~(1U<<11);
+
+		/*Select software slave management by
+		 * setting SSM=1 and SSI=1*/
+		SPI1->CR1 |= (1<<8);
+		SPI1->CR1 |= (1<<9);
+
+		/*Enable SPI module*/
+		SPI1->CR1 |= (1<<6);
+}
+
+void OLED_SPI_Write(char *data,uint32_t size)
+{
+	GPIOA->BSRR |= SS_LOW_MSK;
+	uint32_t i=0;
+
+	while(i<size)
+	{
+		/*Wait until TXE is set*/
+		while(!(SPI1->SR & (SPI_SR_TXE))){}
+
+		/*Write the data to the data register*/
+		SPI1->DR =(uint8_t) data[i];
+		i++;
 	}
+	/*Wait until TXE is set*/
+	while(!(SPI1->SR & (SPI_SR_TXE))){}
+
+	/*Wait for BUSY flag to reset*/
+	while((SPI1->SR & (SPI_SR_BSY))){}
+
+	/*Clear OVR flag*/
+	(void)SPI1->DR;
+	(void)SPI1->SR;
+
+	GPIOA->BSRR |= SS_HIGH_MSK;
 }
 
-/*
- * @breif   : User switch triggered interrupt
- * 			: Triggers on rising and falling edge of button
- * 			: Code modified from Dean 4.8, 4.9 4.12
- * @param   : void
- * @return  : void
- */
-//void EXTI4_15_IRQHandler(void) {
-//	//Get g_state of enable/disable for interrupts
-//	uint32_t masking_g_state = __get_PRIMASK();
-//	__disable_irq();
-//	//Check for rising edge
-//	if ((EXTI->PR & SWITCH_PIN_MASK) != 0) {
-//		EXTI->PR = SWITCH_PIN_MASK; // clear pending request
-//		if (get_switch_state()) {
-//			set_led(ELED, ON);
-//			printf("button pressed\r\n");
+//void OLED_Select(void)
+//{
+//	GPIOA->BSRR =GPIO_BSRR_BR9;
 //
-//		} else { //Falling edge
-//			set_led(ELED, OFF);
-//			printf("button released\r\n");
+//}
+//
+///*Pull high to disable*/
+//void OLED_Deselect(void)
+//{
+//	GPIOA->BSRR =GPIO_BSRR_BS9;
+//}
+//
+//void OLED_DataMode()
+//{
+//	GPIOA->BSRR=GPIO_BSRR_BS10;
+//}
+//
+//void OLED_CommMode()
+//{
+//	GPIOA->BSRR=GPIO_BSRR_BR10;
+//}
+//
+//void SSD1306_WRITEDATA(char command)
+//{
+//	OLED_DataMode();
+//	OLED_Select();
+//	OLED_SPI_Write(&command,1);
+//	OLED_Deselect();
+//}
+//
+//void SSD1306_WRITECOMMAND(char command)
+//{
+//	OLED_CommMode();
+//	OLED_Select();
+//	OLED_SPI_Write(&command,1);
+//	OLED_Deselect();
+//}
+//
+//void SSD1306_Write_Multi_Data(char * data, uint16_t length)
+//{
+//	OLED_DataMode();
+//	OLED_Select();
+//	OLED_SPI_Write((char*)data,length);
+//	OLED_Deselect();
+//
+//}
+//
+//uint8_t SSD1306_Init(void)
+//{
+//	 OLED_SPI_Pins_Init();
+//
+//	 OLED_SPI_Configure();
+//	/* A little delay */
+//	uint32_t p = 2500;
+//	while(p>0)
+//		p--;
+//
+//	/* Init LCD */
+//	SSD1306_WRITECOMMAND(0xAE); //display off
+//	SSD1306_WRITECOMMAND(0x20); //Set Memory Addressing Mode
+//	SSD1306_WRITECOMMAND(0x10); //00,Horizontal Addressing Mode;01,Vertical Addressing Mode;10,Page Addressing Mode (RESET);11,Invalid
+//	SSD1306_WRITECOMMAND(0xB0); //Set Page Start Address for Page Addressing Mode,0-7
+//	SSD1306_WRITECOMMAND(0xC8); //Set COM Output Scan Direction
+//	SSD1306_WRITECOMMAND(0x00); //---set low column address
+//	SSD1306_WRITECOMMAND(0x10); //---set high column address
+//	SSD1306_WRITECOMMAND(0x40); //--set start line address
+//	SSD1306_WRITECOMMAND(0x81); //--set contrast control register
+//	SSD1306_WRITECOMMAND(0xFF);
+//	SSD1306_WRITECOMMAND(0xA1); //--set segment re-map 0 to 127
+//	SSD1306_WRITECOMMAND(0xA6); //--set normal display
+//	SSD1306_WRITECOMMAND(0xA8); //--set multiplex ratio(1 to 64)
+//	SSD1306_WRITECOMMAND(0x3F); //
+//	SSD1306_WRITECOMMAND(0xA4); //0xa4,Output follows RAM content;0xa5,Output ignores RAM content
+//	SSD1306_WRITECOMMAND(0xD3); //-set display offset
+//	SSD1306_WRITECOMMAND(0x00); //-not offset
+//	SSD1306_WRITECOMMAND(0xD5); //--set display clock divide ratio/oscillator frequency
+//	SSD1306_WRITECOMMAND(0xF0); //--set divide ratio
+//	SSD1306_WRITECOMMAND(0xD9); //--set pre-charge period
+//	SSD1306_WRITECOMMAND(0x22); //
+//	SSD1306_WRITECOMMAND(0xDA); //--set com pins hardware configuration
+//	SSD1306_WRITECOMMAND(0x12);
+//	SSD1306_WRITECOMMAND(0xDB); //--set vcomh
+//	SSD1306_WRITECOMMAND(0x20); //0x20,0.77xVcc
+//	SSD1306_WRITECOMMAND(0x8D); //--set DC-DC enable
+//	SSD1306_WRITECOMMAND(0x14); //
+//	SSD1306_WRITECOMMAND(0xAF); //--turn on SSD1306 panel
+//
+//
+//	SSD1306_WRITECOMMAND(SSD1306_DEACTIVATE_SCROLL);
+//
+//	/* Clear screen */
+//	SSD1306_Fill(SSD1306_COLOR_BLACK);
+//
+//	/* Update screen */
+//	SSD1306_UpdateScreen();
+//
+//	/* Set default values */
+//	SSD1306.CurrentX = 0;
+//	SSD1306.CurrentY = 0;
+//
+//	/* Initialized OK */
+//	SSD1306.Initialized = 1;
+//
+//	/* Return OK */
+//	return 1;
+//}
+//
+//void SSD1306_GotoXY(uint16_t x, uint16_t y) {
+//	/* Set write pointers */
+//	SSD1306.CurrentX = x;
+//	SSD1306.CurrentY = y;
+//}
+//
+//char SSD1306_Puts(char* str, FontDef_t* Font, SSD1306_COLOR_t color) {
+//	/* Write characters */
+//	while (*str) {
+//		/* Write character by character */
+//		if (SSD1306_Putc(*str, Font, color) != *str) {
+//			/* Return error */
+//			return *str;
 //		}
+//
+//		/* Increase string pointer */
+//		str++;
 //	}
-//	// Clear all other pending requests for this handler
-//	EXTI->PR = 0x0000fff0;
-//	//Return to previous g_state of enable/disable for interrupts
-//	__set_PRIMASK(masking_g_state);
+//
+//	/* Everything OK, zero should be returned */
+//	return *str;
+//}
+//
+//void SSD1306_UpdateScreen(void) {
+//	uint8_t m;
+//
+//	for (m = 0; m < 8; m++) {
+//		SSD1306_WRITECOMMAND(0xB0 + m);
+//		SSD1306_WRITECOMMAND(0x00);
+//		SSD1306_WRITECOMMAND(0x10);
+//
+//		/* Write multi data */
+//
+//		SSD1306_Write_Multi_Data(&SSD1306_Buffer[SSD1306_WIDTH * m], SSD1306_WIDTH);
+//	}
 //}
 
-
-
-
-/*
- * @Brief   : Main loop
- */
-int main(void)
-{
-	LOG("Main Loop Starting\r\n");
+//int main(void){
+//	OLED_SPI_Pins_Init();
+//	OLED_SPI_Configure();
 //
-	init_led();
-	Init_SPI1();
-	Test_SPI_Loopback();
-	//init_switch();
+//	char a = 0xaa;
+//	while(1)
+//	{
+//		OLED_SPI_Write(&a, 1);
+//	}
+//}
 
-	for(;;);
-
-}
