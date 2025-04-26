@@ -1,18 +1,140 @@
 #include "stm32f0xx.h"
 #include "utilities.h"
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
 
 #define SS_LOW_MSK (GPIO_BSRR_BR_15)
 #define SS_HIGH_MSK (GPIO_BSRR_BS_15)
+#define DC_LOW_MSK (GPIO_BSRR_BR_9)
+#define DC_HIGH_MSK (GPIO_BSRR_BS_9)
+#define RST_LOW_MSK (GPIO_BSRR_BR_7)
+#define RST_HIGH_MSK (GPIO_BSRR_BS_7)
+
+#define MS_TO_ITERATIONS 3195
+
+#define BLACK 0
+#define WHITE 1
+
+#define LCDWIDTH			64
+#define LCDHEIGHT			48
+#define FONTHEADERSIZE		6
+
+#define NORM				0
+#define XOR					1
+
+#define PAGE				0
+#define ALL					1
+
+#define WIDGETSTYLE0			0
+#define WIDGETSTYLE1			1
+#define WIDGETSTYLE2			2
+
+#define SETCONTRAST 		0x81
+#define DISPLAYALLONRESUME 	0xA4
+#define DISPLAYALLON 		0xA5
+#define NORMALDISPLAY 		0xA6
+#define INVERTDISPLAY 		0xA7
+#define DISPLAYOFF 			0xAE
+#define DISPLAYON 			0xAF
+#define SETDISPLAYOFFSET 	0xD3
+#define SETCOMPINS 			0xDA
+#define SETVCOMDESELECT		0xDB
+#define SETDISPLAYCLOCKDIV 	0xD5
+#define SETPRECHARGE 		0xD9
+#define SETMULTIPLEX 		0xA8
+#define SETLOWCOLUMN 		0x00
+#define SETHIGHCOLUMN 		0x10
+#define SETSTARTLINE 		0x40
+#define MEMORYMODE 			0x20
+#define COMSCANINC 			0xC0
+#define COMSCANDEC 			0xC8
+#define SEGREMAP 			0xA0
+#define CHARGEPUMP 			0x8D
+#define EXTERNALVCC 		0x01
+#define SWITCHCAPVCC 		0x02
 
 
-void OLED_SPI_Pins_Init()
-{
-	RCC->AHBENR|=RCC_AHBENR_GPIOAEN; //enable clock for GPIOA
-	RCC->AHBENR|=RCC_AHBENR_GPIOBEN; //enable clock for GPIOA
+static uint8_t screenmemory [] = {
+	/* LCD Memory organised in 64 horizontal pixel and 6 rows of byte
+	 B  B .............B  -----
+	 y  y .............y        \
+	 t  t .............t         \
+	 e  e .............e          \
+	 0  1 .............63          \
+	                                \
+	 D0 D0.............D0            \
+	 D1 D1.............D1            / ROW 0
+	 D2 D2.............D2           /
+	 D3 D3.............D3          /
+	 D4 D4.............D4         /
+	 D5 D5.............D5        /
+	 D6 D6.............D6       /
+	 D7 D7.............D7  ----
+	*/
+	//SparkFun Electronics LOGO
 
-	//set PA5, PA6 and PA7 to alternate function mode
-//	GPIOA->MODER |= GPIO_MODER_MODE5_1 | GPIO_MODER_MODE6_1|GPIO_MODER_MODE7_1;
-//	GPIOA->MODER &=~(GPIO_MODER_MODE5_0|GPIO_MODER_MODE6_0|GPIO_MODER_MODE7_0);
+	// ROW0, BYTE0 to BYTE63
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0xF8, 0xFC, 0xFE, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0x0F, 0x07, 0x07, 0x06, 0x06, 0x00, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+	// ROW1, BYTE64 to BYTE127
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x81, 0x07, 0x0F, 0x3F, 0x3F, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFE, 0xFE, 0xFC, 0xFC, 0xFC, 0xFE, 0xFF, 0xFF, 0xFF, 0xFC, 0xF8, 0xE0,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+	// ROW2, BYTE128 to BYTE191
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFC,
+	0xFE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF1, 0xE0, 0xE0, 0xE0, 0xE0, 0xE0, 0xF0, 0xFD, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+	// ROW3, BYTE192 to BYTE255
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0x3F, 0x1F, 0x07, 0x01,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+	// ROW4, BYTE256 to BYTE319
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
+	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F, 0x3F, 0x1F, 0x1F, 0x0F, 0x0F, 0x0F, 0x0F,
+	0x0F, 0x0F, 0x0F, 0x0F, 0x07, 0x07, 0x07, 0x03, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+
+	// ROW5, BYTE320 to BYTE383
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF,
+	0x7F, 0x3F, 0x1F, 0x0F, 0x07, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+
+
+// Blocking delay
+void delay_ms(int msec){
+
+//	LOG("START TIMER %i for starting a %i msec delay\r\n", msec, msec);
+
+	int iterations = msec * MS_TO_ITERATIONS;
+	while (iterations-- != 0) { //spins desired num clock cycles
+		__asm volatile("NOP");
+	}
+}
+
+
+void gpio_init(void) {
+
+
+	// Clock gating for SPI1 and GPIO A and B
+	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN;
+
+	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER15, ESF_GPIO_MODER_OUTPUT);
+
 
 	// GPIO B pin 3, 4, 5 in alternate function 0 (SPI1) for SCK, MISO, MOSI
 	// Set each mode field to 2 for alternate function
@@ -24,234 +146,202 @@ void OLED_SPI_Pins_Init()
 	MODIFY_FIELD(GPIOB->AFR[0], GPIO_AFRL_AFSEL4, 0);
 	MODIFY_FIELD(GPIOB->AFR[0], GPIO_AFRL_AFSEL5, 0);
 
-	//Chip Select
-	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER15, ESF_GPIO_MODER_OUTPUT);
-	//MODIFY_FIELD(GPIOA->AFR[0], GPIO_AFRH_AFSEL15, 0);
+	//DC
+	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER9,
+	ESF_GPIO_MODER_OUTPUT);
+
+	//RST
+	MODIFY_FIELD(GPIOA->MODER, GPIO_MODER_MODER7,
+	ESF_GPIO_MODER_OUTPUT);
+
+	// Disable SPI
+	MODIFY_FIELD(SPI1->CR1, SPI_CR1_SPE, 0);
 
 
+	// Clock is divided by 16 (2^(BR+1))
+	MODIFY_FIELD(SPI1->CR1, SPI_CR1_BR, 7);
+	MODIFY_FIELD(SPI1->CR1, SPI_CR1_MSTR, 1); // Master mode
+	// Select first edge sample, active high clock
+	MODIFY_FIELD(SPI1->CR1, SPI_CR1_CPHA, 0);
+	MODIFY_FIELD(SPI1->CR1, SPI_CR1_CPOL, 0);
 
-//	//Set PA9 and PA10 as Output
-//	GPIOA->MODER|=GPIO_MODER_MODE9_0|GPIO_MODER_MODE10_0;
-//	GPIOA->MODER&=~(GPIO_MODER_MODE9_1|GPIO_MODER_MODE10_1);
+	// Data is LSB first
+	MODIFY_FIELD(SPI1->CR1, SPI_CR1_LSBFIRST, 0);
+	// Data is 8 bits long
+	MODIFY_FIELD(SPI1->CR2, SPI_CR2_DS, 7);
+	// RXNE when at least 1 byte in RX FIFO
+	MODIFY_FIELD(SPI1->CR2, SPI_CR2_FRXTH, 1);
 
-	/*select which AF for PA5, PA6 and PA7*/
-	//GPIOA->AFR[0]|=(0x05<<20)|(0x05<<24)|(0x05<<28);
+	/*Select software slave management by
+	 * setting SSM=1 and SSI=1*/
+	SPI1->CR1 |= (1<<8);
+	SPI1->CR1 |= (1<<9);
+
+	// Enable SPI
+	MODIFY_FIELD(SPI1->CR1, SPI_CR1_SPE, 1);
+
 }
 
-void OLED_SPI_Configure()
-{
-	/*Enable clock access to SPI1 module*/
-		RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 
-		/*Set clock to fPCLK/2*/
-		SPI1->CR1 &=~(1U<<3);
-		SPI1->CR1 &=~(1U<<4);
-		SPI1->CR1 &=~(1U<<5);
+uint8_t SPI_Send_Receive_Byte(uint8_t d_out) {
+//	LOG("Send %i\r\n", d_out);
+	uint8_t d_in = 236;
+	// Wait until transmitter buffer is empty
+	while ((SPI1->SR & SPI_SR_TXE) == 0)
+		 ;
+	// Transmit d_ out
+	// Must tell compiler to use a byte write (not half- word)
+	// by casting SPI1- >DR into a pointer to a byte (uint8_ t).
+	// See STM32F0 Snippets (SPI_ 01_ FullDuplexCommunications).
+	*((uint8_t *)&(SPI1->DR)) = d_out;
+	// Wait until receiver is not empty
+	while ((SPI1->SR & SPI_SR_RXNE) == 0)
+		 ;
+	// Get d_ in
+	d_in = (uint8_t) SPI1->DR;
+	//LOG("Received %i\r\n", d_in);
+	return d_in;
+};
 
-		/*Enable full duplex*/
-		SPI1->CR1 &=~(1U<<10);
+void command(uint8_t val) {
+//	LOG("Send command %i\r\n", c);
 
-		/*Set MSB first*/
-		SPI1->CR1 &= ~(1U<<7);
-
-		// Select first edge sample, active high clock
-		MODIFY_FIELD(SPI1->CR1, SPI_CR1_CPHA, 1);
-		MODIFY_FIELD(SPI1->CR1, SPI_CR1_CPOL, 1);
-
-		/*Set mode to MASTER*/
-		SPI1->CR1 |= (1U<<2);
-
-		/*Set 8 bit data mode*/
-		SPI1->CR1 &= ~(1U<<11);
-
-		/*Select software slave management by
-		 * setting SSM=1 and SSI=1*/
-		SPI1->CR1 |= (1<<8);
-		SPI1->CR1 |= (1<<9);
-
-		/*Enable SPI module*/
-		SPI1->CR1 |= (1<<6);
+	GPIOA->BSRR |= DC_LOW_MSK; // DC pin LOW for a command
+	GPIOA->BSRR |= SS_LOW_MSK;	// SS LOW to initialize transfer
+	//delay_ms(1);
+	//SPI_Send_Receive_Byte((reg & 0x3F));
+	SPI_Send_Receive_Byte(val);			// Transfer the command byte// Transfer the command byte
+	GPIOA->BSRR |= SS_HIGH_MSK;	// SS HIGH to end transfer
 }
 
-void OLED_SPI_Write(char *data,uint32_t size)
-{
-	GPIOA->BSRR |= SS_LOW_MSK;
-	uint32_t i=0;
+void data(uint8_t val) {
+//	LOG("Send command %i\r\n", c);
 
-	while(i<size)
-	{
-		/*Wait until TXE is set*/
-		while(!(SPI1->SR & (SPI_SR_TXE))){}
+	GPIOA->BSRR |= DC_HIGH_MSK; // DC pin LOW for a command
+	GPIOA->BSRR |= SS_LOW_MSK;	// SS LOW to initialize transfer
+	//delay_ms(1);
+	//SPI_Send_Receive_Byte((reg & 0x3F));
+	SPI_Send_Receive_Byte(val);			// Transfer the command byte// Transfer the command byte
+	GPIOA->BSRR |= SS_HIGH_MSK;	// SS HIGH to end transfer
+}
 
-		/*Write the data to the data register*/
-		SPI1->DR =(uint8_t) data[i];
-		i++;
+/** \brief Set SSD1306 page address.
+
+    Send page address command and address to the SSD1306 OLED controller.
+*/
+void setPageAddress(uint8_t add) {
+	add=0xb0|add;
+	command(add);
+	return;
+}
+
+/** \brief Set SSD1306 column address.
+
+    Send column address command and address to the SSD1306 OLED controller.
+*/
+void setColumnAddress(uint8_t add) {
+	command((0x10|(add>>4))+0x02);
+	command((0x0f&add));
+	return;
+}
+
+
+/** \brief Clear screen buffer or SSD1306's memory.
+
+    To clear GDRAM inside the LCD controller, pass in the variable mode = ALL and to clear screen page buffer pass in the variable mode = PAGE.
+*/
+void clear(uint8_t mode) {
+	//	uint8_t page=6, col=0x40;
+	if (mode==ALL) {
+		for (int i=0;i<8; i++) {
+			setPageAddress(i);
+			setColumnAddress(0);
+			for (int j=0; j<0x80; j++) {
+				data(0);
+			}
+		}
 	}
-	/*Wait until TXE is set*/
-	while(!(SPI1->SR & (SPI_SR_TXE))){}
-
-	/*Wait for BUSY flag to reset*/
-	while((SPI1->SR & (SPI_SR_BSY))){}
-
-	/*Clear OVR flag*/
-	(void)SPI1->DR;
-	(void)SPI1->SR;
-
-	GPIOA->BSRR |= SS_HIGH_MSK;
+	else
+	{
+		memset(screenmemory,0,384);			// (64 x 48) / 8 = 384
+		//display();
+	}
 }
 
-//void OLED_Select(void)
-//{
-//	GPIOA->BSRR =GPIO_BSRR_BR9;
-//
-//}
-//
-///*Pull high to disable*/
-//void OLED_Deselect(void)
-//{
-//	GPIOA->BSRR =GPIO_BSRR_BS9;
-//}
-//
-//void OLED_DataMode()
-//{
-//	GPIOA->BSRR=GPIO_BSRR_BS10;
-//}
-//
-//void OLED_CommMode()
-//{
-//	GPIOA->BSRR=GPIO_BSRR_BR10;
-//}
-//
-//void SSD1306_WRITEDATA(char command)
-//{
-//	OLED_DataMode();
-//	OLED_Select();
-//	OLED_SPI_Write(&command,1);
-//	OLED_Deselect();
-//}
-//
-//void SSD1306_WRITECOMMAND(char command)
-//{
-//	OLED_CommMode();
-//	OLED_Select();
-//	OLED_SPI_Write(&command,1);
-//	OLED_Deselect();
-//}
-//
-//void SSD1306_Write_Multi_Data(char * data, uint16_t length)
-//{
-//	OLED_DataMode();
-//	OLED_Select();
-//	OLED_SPI_Write((char*)data,length);
-//	OLED_Deselect();
-//
-//}
-//
-//uint8_t SSD1306_Init(void)
-//{
-//	 OLED_SPI_Pins_Init();
-//
-//	 OLED_SPI_Configure();
-//	/* A little delay */
-//	uint32_t p = 2500;
-//	while(p>0)
-//		p--;
-//
-//	/* Init LCD */
-//	SSD1306_WRITECOMMAND(0xAE); //display off
-//	SSD1306_WRITECOMMAND(0x20); //Set Memory Addressing Mode
-//	SSD1306_WRITECOMMAND(0x10); //00,Horizontal Addressing Mode;01,Vertical Addressing Mode;10,Page Addressing Mode (RESET);11,Invalid
-//	SSD1306_WRITECOMMAND(0xB0); //Set Page Start Address for Page Addressing Mode,0-7
-//	SSD1306_WRITECOMMAND(0xC8); //Set COM Output Scan Direction
-//	SSD1306_WRITECOMMAND(0x00); //---set low column address
-//	SSD1306_WRITECOMMAND(0x10); //---set high column address
-//	SSD1306_WRITECOMMAND(0x40); //--set start line address
-//	SSD1306_WRITECOMMAND(0x81); //--set contrast control register
-//	SSD1306_WRITECOMMAND(0xFF);
-//	SSD1306_WRITECOMMAND(0xA1); //--set segment re-map 0 to 127
-//	SSD1306_WRITECOMMAND(0xA6); //--set normal display
-//	SSD1306_WRITECOMMAND(0xA8); //--set multiplex ratio(1 to 64)
-//	SSD1306_WRITECOMMAND(0x3F); //
-//	SSD1306_WRITECOMMAND(0xA4); //0xa4,Output follows RAM content;0xa5,Output ignores RAM content
-//	SSD1306_WRITECOMMAND(0xD3); //-set display offset
-//	SSD1306_WRITECOMMAND(0x00); //-not offset
-//	SSD1306_WRITECOMMAND(0xD5); //--set display clock divide ratio/oscillator frequency
-//	SSD1306_WRITECOMMAND(0xF0); //--set divide ratio
-//	SSD1306_WRITECOMMAND(0xD9); //--set pre-charge period
-//	SSD1306_WRITECOMMAND(0x22); //
-//	SSD1306_WRITECOMMAND(0xDA); //--set com pins hardware configuration
-//	SSD1306_WRITECOMMAND(0x12);
-//	SSD1306_WRITECOMMAND(0xDB); //--set vcomh
-//	SSD1306_WRITECOMMAND(0x20); //0x20,0.77xVcc
-//	SSD1306_WRITECOMMAND(0x8D); //--set DC-DC enable
-//	SSD1306_WRITECOMMAND(0x14); //
-//	SSD1306_WRITECOMMAND(0xAF); //--turn on SSD1306 panel
-//
-//
-//	SSD1306_WRITECOMMAND(SSD1306_DEACTIVATE_SCROLL);
-//
-//	/* Clear screen */
-//	SSD1306_Fill(SSD1306_COLOR_BLACK);
-//
-//	/* Update screen */
-//	SSD1306_UpdateScreen();
-//
-//	/* Set default values */
-//	SSD1306.CurrentX = 0;
-//	SSD1306.CurrentY = 0;
-//
-//	/* Initialized OK */
-//	SSD1306.Initialized = 1;
-//
-//	/* Return OK */
-//	return 1;
-//}
-//
-//void SSD1306_GotoXY(uint16_t x, uint16_t y) {
-//	/* Set write pointers */
-//	SSD1306.CurrentX = x;
-//	SSD1306.CurrentY = y;
-//}
-//
-//char SSD1306_Puts(char* str, FontDef_t* Font, SSD1306_COLOR_t color) {
-//	/* Write characters */
-//	while (*str) {
-//		/* Write character by character */
-//		if (SSD1306_Putc(*str, Font, color) != *str) {
-//			/* Return error */
-//			return *str;
-//		}
-//
-//		/* Increase string pointer */
-//		str++;
-//	}
-//
-//	/* Everything OK, zero should be returned */
-//	return *str;
-//}
-//
-//void SSD1306_UpdateScreen(void) {
-//	uint8_t m;
-//
-//	for (m = 0; m < 8; m++) {
-//		SSD1306_WRITECOMMAND(0xB0 + m);
-//		SSD1306_WRITECOMMAND(0x00);
-//		SSD1306_WRITECOMMAND(0x10);
-//
-//		/* Write multi data */
-//
-//		SSD1306_Write_Multi_Data(&SSD1306_Buffer[SSD1306_WIDTH * m], SSD1306_WIDTH);
-//	}
-//}
+void begin()
+{
+	// Display reset routine
+	GPIOA->BSRR |= RST_HIGH_MSK;	// Initially set RST HIGH
+	delay_ms(5);	// VDD (3.3V) goes high at start, lets just chill for 5 ms
+	GPIOA->BSRR |= RST_LOW_MSK;	// Bring RST low, reset the display
+	delay_ms(10);	// wait 10ms
+	GPIOA->BSRR |= RST_HIGH_MSK;	// Set RST HIGH, bring out of reset
 
-//int main(void){
-//	OLED_SPI_Pins_Init();
-//	OLED_SPI_Configure();
-//
-//	char a = 0xaa;
-//	while(1)
-//	{
-//		OLED_SPI_Write(&a, 1);
-//	}
-//}
+	// Display Init sequence for 64x48 OLED module
+	command(DISPLAYOFF);			// 0xAE
 
+	command(SETDISPLAYCLOCKDIV);	// 0xD5
+	command(0x80);					// the suggested ratio 0x80
+
+	command(SETMULTIPLEX);			// 0xA8
+	command(0x2F);
+
+	command(SETDISPLAYOFFSET);		// 0xD3
+	command(0x0);					// no offset
+
+	command(SETSTARTLINE | 0x0);	// line #0
+
+	command(CHARGEPUMP);			// enable charge pump
+	command(0x14);
+
+	command(NORMALDISPLAY);			// 0xA6
+	command(DISPLAYALLONRESUME);	// 0xA4
+
+	command(SEGREMAP | 0x1);
+	command(COMSCANDEC);
+
+	command(SETCOMPINS);			// 0xDA
+	command(0x12);
+
+	command(SETCONTRAST);			// 0x81
+	command(0x8F);
+
+	command(SETPRECHARGE);			// 0xd9
+	command(0xF1);
+
+	command(SETVCOMDESELECT);			// 0xDB
+	command(0x40);
+
+	command(DISPLAYON);				//--turn on oled panel
+	clear(ALL);						// Erase hardware memory inside the OLED controller to avoid random data in memory.
+}
+
+/** \brief Transfer display memory.
+
+    Bulk move the screen buffer to the SSD1306 controller's memory so that images/graphics drawn on the screen buffer will be displayed on the OLED.
+*/
+void display(void) {
+	uint8_t i, j;
+
+	for (i=0; i<6; i++) {
+		setPageAddress(i);
+		setColumnAddress(0);
+		for (j=0;j<0x40;j++) {
+			data(screenmemory[i*0x40+j]);
+		}
+	}
+}
+
+
+int main(void) {
+    // Initialize GPIO, SPI and OLED
+    gpio_init();
+    begin();
+    display();
+    while(1){
+		setPageAddress(0);
+		setColumnAddress(0);
+		data(0xff);
+    }
+
+}
