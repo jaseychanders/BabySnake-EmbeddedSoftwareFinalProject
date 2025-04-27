@@ -6,6 +6,7 @@
 #include "delay.h"
 #include "display.h"
 #include "led.h"
+#include "snake_list.h"
 #include "switch.h"
 
 
@@ -19,20 +20,27 @@ int main(void) {
     uint8_t prev_x = 0;
     uint8_t prev_y = 0;
     int direction = UP;
+    Node * snake_head = NULL;
+    snake_head = init_snake_list(x,y);
+    int length_of_snake = 15;
     while(1){
+
+
+
+
 
     	flags = get_flags();
     	if(flags) {
-    		if (flags & 0x01){ //Up switch
+    		if (flags & 0x01 && direction != DOWN){ //Up switch
     			LOG("UP\r\n");
     			direction = UP;
-    		} else if (flags & 0x02){ //Right switch
+    		} else if (flags & 0x02 && direction != LEFT){ //Right switch
     			LOG("RIGHT\r\n");
     			direction = RIGHT;
-    		} else if (flags & 0x04){ //Down switch
+    		} else if (flags & 0x04 && direction != UP){ //Down switch
     			LOG("DOWN\r\n");
     			direction = DOWN;
-    		} else if (flags & 0x08){ //Left switch
+    		} else if (flags & 0x08 && direction != RIGHT){ //Left switch
     			LOG("LEFT\r\n");
     			direction = LEFT;
     		}
@@ -48,24 +56,19 @@ int main(void) {
     	} else if(direction == LEFT && x > 1){
     		x -=1;
     	}
-
+    	snake_head = add_to_snake_head(x, y);
+    	if(length_of_snake_list() > length_of_snake){
+    		remove_from_snake_tail(&prev_x, &prev_y);
+    	}
+		set_pixel(snake_head->x, snake_head->y, 1);
     	set_pixel(prev_x, prev_y, 0);
-		set_pixel(x, y, 1);
-		prev_x = x;
-		prev_y = y;
 		push_display();
 
-
-
-
-//    	for(int i = 0; i < 48; i++){
-//    		for(int j = 0; j < 64; j++){
-//
-//
-//    			//delay_ms(1);
-//    		}
-//    	}
-
     }
+
+	delete_snake_list();
+    free(snake_head);
+
+
 
 }
