@@ -34,8 +34,6 @@
 #define EMPTY_BYTE 0x00
 
 //Screen Dims
-#define SCREEN_WIDTH 64
-#define SCREEN_HEIGHT 48
 #define SCREEN_ROWS 6
 #define ROW_HEIGHT 8
 

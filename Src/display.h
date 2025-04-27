@@ -21,6 +21,10 @@
 #include <string.h>
 #include <stdio.h>
 
+//Screen Dims
+#define SCREEN_WIDTH 64
+#define SCREEN_HEIGHT 48
+
 /*
  * @Breif : Initializes the display including hardware init and OLED boot up
  * 		  : Clears screen memory and pushes blank display

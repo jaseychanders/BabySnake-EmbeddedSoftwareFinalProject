@@ -71,11 +71,11 @@ bool get_switch_state(int switch_ID)
 		case UP:
 			return !(GPIOA->IDR & GPIO_IDR_12);
 		case RIGHT:
-			return !(GPIOA->IDR & GPIO_IDR_8);
+			return !(GPIOA->IDR & GPIO_IDR_10);
 		case DOWN:
 			return !(GPIOA->IDR & GPIO_IDR_6);
 		case LEFT:
-			return !(GPIOA->IDR & GPIO_IDR_10);
+			return !(GPIOA->IDR & GPIO_IDR_8);
 		default:
 			LOG("No such switch id\r\n");
 			return 0;
@@ -90,6 +90,8 @@ bool get_switch_state(int switch_ID)
  * 			: Code modified from Dean 4.8, 4.9 4.12
  * @param   : void
  * @return  : void
+ *
+ * sometimes triggers multiple reads
  */
 void EXTI4_15_IRQHandler(void) {
 	//Get g_state of enable/disable for interrupts
@@ -98,19 +100,28 @@ void EXTI4_15_IRQHandler(void) {
 	//Check for rising edge
 	if ((EXTI->PR & GPIO_IDR_12) != 0) {
 		EXTI->PR = GPIO_IDR_12; // clear pending request
-		flags |= 0x01;
-	} else if ((EXTI->PR & GPIO_IDR_8) != 0) {
-		EXTI->PR = GPIO_IDR_8; // clear pending request
-		flags |= 0x02;
-	} else if ((EXTI->PR & GPIO_IDR_6) != 0) {
-		EXTI->PR = GPIO_IDR_6; // clear pending request
-		flags |= 0x04;
+		if(!(GPIOA->IDR & GPIO_IDR_12)){
+			flags |= 0x01;
+		}
+
 	} else if ((EXTI->PR & GPIO_IDR_10) != 0) {
 		EXTI->PR = GPIO_IDR_10; // clear pending request
-		flags |= 0x08;
+		if(!(GPIOA->IDR & GPIO_IDR_10)){
+			flags |= 0x02;
+		}
+	}else if ((EXTI->PR & GPIO_IDR_6) != 0) {
+		EXTI->PR = GPIO_IDR_6; // clear pending request
+		if(!(GPIOA->IDR & GPIO_IDR_6)){
+			flags |= 0x04;
+		}
+	} else if ((EXTI->PR & GPIO_IDR_8) != 0) {
+		EXTI->PR = GPIO_IDR_8; // clear pending request
+		if(!(GPIOA->IDR & GPIO_IDR_8)){
+			flags |= 0x08;
+		}
 	}
 	// Clear all other pending requests for this handler
-	EXTI->PR = 0x0000fff0;
+	EXTI->PR = 0x00000000;
 	//Return to previous g_state of enable/disable for interrupts
 	__set_PRIMASK(masking_g_state);
 }
