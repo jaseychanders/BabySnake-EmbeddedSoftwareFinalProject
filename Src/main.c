@@ -8,40 +8,40 @@
 #include "led.h"
 #include "snake_list.h"
 #include "switch.h"
+#include "snake_list_tests.h"
 
 
 int main(void) {
-    init_display();
+
+	init_display();
     init_led();
     init_switch();
+
+    LOG("Starting\r\n");
     uint8_t flags;
     uint8_t x = 0;
     uint8_t y = 0;
     uint8_t prev_x = 0;
     uint8_t prev_y = 0;
     int direction = UP;
+
+   // tests
+    test_snake_list();
+
     Node * snake_head = NULL;
-    snake_head = init_snake_list(x,y);
+    snake_head = NULL;
     int length_of_snake = 15;
     while(1){
-
-
-
-
 
     	flags = get_flags();
     	if(flags) {
     		if (flags & 0x01 && direction != DOWN){ //Up switch
-    			LOG("UP\r\n");
     			direction = UP;
     		} else if (flags & 0x02 && direction != LEFT){ //Right switch
-    			LOG("RIGHT\r\n");
     			direction = RIGHT;
     		} else if (flags & 0x04 && direction != UP){ //Down switch
-    			LOG("DOWN\r\n");
     			direction = DOWN;
     		} else if (flags & 0x08 && direction != RIGHT){ //Left switch
-    			LOG("LEFT\r\n");
     			direction = LEFT;
     		}
     		clear_flags();
@@ -49,14 +49,18 @@ int main(void) {
 
     	if(direction == UP && y < SCREEN_WIDTH -1){
     		y +=1;
+    		snake_head = add_to_snake_head(x, y);
     	} else if(direction == RIGHT && x < SCREEN_HEIGHT -1){
     		x +=1;
+    		snake_head = add_to_snake_head(x, y);
     	} else if(direction == DOWN && y > 1){
     	    y -=1;
+    	    snake_head = add_to_snake_head(x, y);
     	} else if(direction == LEFT && x > 1){
     		x -=1;
+    		snake_head = add_to_snake_head(x, y);
     	}
-    	snake_head = add_to_snake_head(x, y);
+
     	if(length_of_snake_list() > length_of_snake){
     		remove_from_snake_tail(&prev_x, &prev_y);
     	}
