@@ -15,9 +15,10 @@
 #include <stdbool.h>
 #include "log.h"
 
-// User switch on PORT C, pin 13
-#define SWITCH_PIN_MASK GPIO_IDR_13
-
+#define UP 0
+#define RIGHT 1
+#define DOWN 2
+#define LEFT 3
 
 /*
  * @breif Initializes the user switch
@@ -32,6 +33,11 @@ void init_switch();
  * @return true if switch is pressed, false otherwise
  */
 bool get_switch_state();
+
+
+void clear_flags();
+
+uint8_t get_flags();
 
 
 #endif
