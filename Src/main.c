@@ -9,6 +9,7 @@
 #include "display.h"
 #include "led.h"
 #include "switch.h"
+#include "state_machine_tests.h"
 
 
 int main(void) {
@@ -17,11 +18,13 @@ int main(void) {
     init_led();
     init_switch();
 
-    LOG("Starting\r\n");
+    LOG("Starting Snake\r\n");
 
 
    // tests
     test_snake_list();
+    test_state_machine();
+
     start_game();
 
     while(1){

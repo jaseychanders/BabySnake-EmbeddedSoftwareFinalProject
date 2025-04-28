@@ -20,6 +20,11 @@ int length_of_snake;
 uint8_t goal_x;
 uint8_t goal_y;
 
+void generate_goal(uint8_t *x, uint8_t *y){
+	*x = 2 + rand() % (SCREEN_HEIGHT - 3);
+	*y = 2 + rand() % (SCREEN_WIDTH - 3);
+}
+
 void reset_game() {
 	LOG("Starting Game\r\n");
 	x = 0;
@@ -29,8 +34,8 @@ void reset_game() {
 	direction = UP;
 	num_points = 0;
 	length_of_snake = 5;
-	goal_x = 27;
-	goal_y = 15;
+	goal_x = START_GOAL_X;
+	goal_y = START_GOAL_Y;
 	set_pixel(goal_x, goal_y, 1);
 	snake_head = add_to_snake_head(x, y);
 	clear_flags();
@@ -40,8 +45,10 @@ void process_goal() {
 	num_points += 1;
 	length_of_snake += 3;
 	set_pixel(goal_x, goal_y, 0);
-	goal_x = 2 + rand() % (SCREEN_HEIGHT - 1);
-	goal_y = 2 + rand() % (SCREEN_WIDTH - 1);
+	generate_goal(&goal_x, &goal_y);
+	while(goal_x < 2 || goal_x > SCREEN_HEIGHT -2 || goal_y < 2 || goal_y > SCREEN_WIDTH -2){ //Regen goal if out of range
+		generate_goal(&goal_x, &goal_y);
+	}
 	LOG("New Goal %i %i\r\n", goal_x, goal_y);
 	set_pixel(goal_x, goal_y, 1);
 	push_display();
@@ -78,7 +85,7 @@ static State current_state = GAME_START;
 
 
 void handle_event(Event event){
-	LOG("Current_state %i, Handling event %i\r\n", current_state, event);
+	//LOG("Current_state %i, Handling event %i\r\n", current_state, event);
 	int event_found = 0;
 	for (int i = 0; i < sizeof(state_table)/sizeof(Transition); i++) {
 		if (!event_found && state_table[i].current_state == current_state && state_table[i].event == event) {
