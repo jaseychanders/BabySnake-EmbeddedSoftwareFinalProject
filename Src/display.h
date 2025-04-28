@@ -35,6 +35,10 @@ void init_display(void);
 */
 void clear_display(void);
 
+/*@Brief  : Set screen to fail screen
+*/
+void fail_screen(void);
+
 /*@Brief  	 : Transfer display memory to OLED
 *         	 : Bulk move the screen memory to the SSD1306 controller's memory so that images/graphics drawn on the screen buffer will be displayed on the OLED.
 *

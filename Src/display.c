@@ -355,6 +355,21 @@ void clear_display() {
 	push_display();
 }
 
+void fail_screen(void){
+	for (int i=0;i<SCREEN_ROWS; i++) {
+		set_row(i);
+		set_column(0);
+		for (int j=0; j<SCREEN_WIDTH; j++) {
+			if(j % 5){
+				screen_memory[i*SCREEN_WIDTH+j] = 0xff;
+			} else {
+				screen_memory[i*SCREEN_WIDTH+j] = 0x00;
+			}
+		}
+	}
+	push_display();
+}
+
 
 //See header file for details
 void push_display(void) {
