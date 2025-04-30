@@ -99,7 +99,6 @@ Transition state_table[] = {
     {GAME_ACTIVE, 	SCORE,   	GOAL_SCORED, 	process_goal},
 	{GOAL_SCORED, 	SCORE_COMP, GAME_ACTIVE, 	do_nothing},
     {GAME_ACTIVE,   FAIL, 		GAME_ENDED,  	end_game},
-	{GOAL_SCORED,   FAIL, 		GAME_ENDED,  	end_game},
 	{GAME_ENDED,   	START, 		GAME_ACTIVE, 	reset_game}
 };
 
