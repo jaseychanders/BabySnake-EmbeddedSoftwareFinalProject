@@ -21,21 +21,25 @@
 #include "display.h"
 
 //Control Pins
-#define SS_LOW_MSK (GPIO_BSRR_BR_15)
-#define SS_HIGH_MSK (GPIO_BSRR_BS_15)
-#define DC_LOW_MSK (GPIO_BSRR_BR_9)
-#define DC_HIGH_MSK (GPIO_BSRR_BS_9)
-#define RST_LOW_MSK (GPIO_BSRR_BR_7)
-#define RST_HIGH_MSK (GPIO_BSRR_BS_7)
+#define SS_LOW_MSK 				(GPIO_BSRR_BR_15)
+#define SS_HIGH_MSK 			(GPIO_BSRR_BS_15)
+#define DC_LOW_MSK 				(GPIO_BSRR_BR_9)
+#define DC_HIGH_MSK 			(GPIO_BSRR_BS_9)
+#define RST_LOW_MSK 			(GPIO_BSRR_BR_7)
+#define RST_HIGH_MSK 			(GPIO_BSRR_BS_7)
 
-#define ON 1
-#define OFF 0
+#define ON 						1
+#define OFF 					0
 
-#define EMPTY_BYTE 0x00
+#define EMPTY_BYTE 				0x00
+#define FULL_BYTE 				0xff
+
+#define FAIL_STRIPE_FREQUENCY 	5
+
 
 //Screen Dims
-#define SCREEN_ROWS 6
-#define ROW_HEIGHT 8
+#define SCREEN_ROWS 			6
+#define ROW_HEIGHT 				8
 
 //Boot commands
 #define SET_CONTRAST 			0x81
@@ -134,10 +138,10 @@ static uint8_t screen_memory [] = {
 };
 
 /*
- * @Breif      : Initializes SPI and associated GPIO pins
+ * @Breif		: Initializes SPI and associated GPIO pins
  *
- * @References : Embedded Systems Fundamentals by Alexander Dean Listing 8.5
- * 			   : https://blog.embeddedexpert.io/?p=1650
+ * @References	: Embedded Systems Fundamentals by Alexander Dean Listing 8.5
+ *				: https://blog.embeddedexpert.io/?p=1650
  */
 void init_hardware(void) {
 
@@ -197,13 +201,13 @@ void init_hardware(void) {
 }
 
 /*
- * @Breif      : Sends and receives a single byte of data over SPI
+ * @Breif		: Sends and receives a single byte of data over SPI
  *
- * @References : Embedded Systems Fundamentals by Alexander Dean Listing 8.4
+ * @References	: Embedded Systems Fundamentals by Alexander Dean Listing 8.4
  *
- * @param send : The byte to send
+ * @param send	: The byte to send
  *
- * @return     : The byte received
+ * @return		: The byte received
  */
 uint8_t SPI_transfer(uint8_t send) {
 	uint8_t receive = 0;
@@ -225,11 +229,11 @@ uint8_t SPI_transfer(uint8_t send) {
 };
 
 /*
- * @Breif      : Sends a command over SPI
+ * @Breif		: Sends a command over SPI
  *
- * @References : SparkFun Electronics SFE_MicroOLED.h arduino library
+ * @References	: SparkFun Electronics SFE_MicroOLED.h arduino library
  *
- * @param val : The command to send
+ * @param val	: The command to send
  */
 void send_command(uint8_t val) {
 
@@ -240,11 +244,11 @@ void send_command(uint8_t val) {
 }
 
 /*
- * @Breif      : Sends a byte of data over SPI
+ * @Breif		: Sends a byte of data over SPI
  *
- * @References : SparkFun Electronics SFE_MicroOLED.h arduino library
+ * @References	: SparkFun Electronics SFE_MicroOLED.h arduino library
  *
- * @param val : The data to send
+ * @param val	: The data to send
  */
 void send_data(uint8_t val) {
 
@@ -254,9 +258,9 @@ void send_data(uint8_t val) {
 	GPIOA->BSRR |= SS_HIGH_MSK;	// SS HIGH to end transfer
 }
 
-/* @brief         : Send page address command and address to the SSD1306 OLED controller.
+/* @brief		: Send page address command and address to the SSD1306 OLED controller.
  *
- * @References    : SparkFun Electronics SFE_MicroOLED.h arduino library
+ * @References	: SparkFun Electronics SFE_MicroOLED.h arduino library
  *
  * @param address : The address of the row
 */
@@ -267,9 +271,9 @@ void set_row(uint8_t address) {
 }
 
 
-/* @brief         : Send column address command and address to the SSD1306 OLED controller.
+/* @brief		: Send column address command and address to the SSD1306 OLED controller.
  *
- * @References    : SparkFun Electronics SFE_MicroOLED.h arduino library
+ * @References	: SparkFun Electronics SFE_MicroOLED.h arduino library
  *
  * @param address : The address of the column
 */
@@ -281,55 +285,55 @@ void set_column(uint8_t address) {
 
 
 /*
- * @Breif       : SSD1306 OLED Boot up sequence
+ * @Breif		: SSD1306 OLED Boot up sequence
  *
- * @References    : SparkFun Electronics SFE_MicroOLED.h arduino library
+ * @References	: SparkFun Electronics SFE_MicroOLED.h arduino library
  */
 void start_display()
 {
 	// Display reset routine
-	GPIOA->BSRR |= RST_HIGH_MSK;	// Initially set RST HIGH
-	delay_ms(5);	// VDD (3.3V) goes high at start, lets just chill for 5 ms
-	GPIOA->BSRR |= RST_LOW_MSK;	// Bring RST low, reset the display
-	delay_ms(10);	// wait 10ms
-	GPIOA->BSRR |= RST_HIGH_MSK;	// Set RST HIGH, bring out of reset
+	GPIOA->BSRR |= RST_HIGH_MSK;					// Initially set RST HIGH
+	delay_ms(5);									// VDD (3.3V) goes high at start, lets just chill for 5 ms
+	GPIOA->BSRR |= RST_LOW_MSK;						// Bring RST low, reset the display
+	delay_ms(10);									// wait 10ms
+	GPIOA->BSRR |= RST_HIGH_MSK;					// Set RST HIGH, bring out of reset
 
 	// Display Init sequence for 64x48 OLED module
-	send_command(DISPLAY_OFF);			// 0xAE
+	send_command(DISPLAY_OFF);
 
-	send_command(SET_DISPLAY_CLOCK_DIV);	// 0xD5
-	send_command(CLOCK_DIV_VAL);					// the suggested ratio 0x80
+	send_command(SET_DISPLAY_CLOCK_DIV);
+	send_command(CLOCK_DIV_VAL);
 
-	send_command(SET_MULTIPLEX);			// 0xA8
+	send_command(SET_MULTIPLEX);
 	send_command(MULTIPLEX_VAL);
 
-	send_command(SET_DISPLAY_OFFSET);		// 0xD3
-	send_command(NO_OFFSET);					// no offset
+	send_command(SET_DISPLAY_OFFSET);
+	send_command(NO_OFFSET);
 
-	send_command(SET_STARTLINE | STARTLINE_VAL);	// line #0
+	send_command(SET_STARTLINE | STARTLINE_VAL);
 
-	send_command(CHARGE_PUMP);			// enable charge pump
+	send_command(CHARGE_PUMP);
 	send_command(CHARGE_PUMP_VAL);
 
-	send_command(NORMAL_DISPLAY);			// 0xA6
-	send_command(DISPLAY_ALL_ON_RESUME);	// 0xA4
+	send_command(NORMAL_DISPLAY);
+	send_command(DISPLAY_ALL_ON_RESUME);
 
 	send_command(SEGRE_MAP | SEGRE_MAP_VAL);
 	send_command(COMS_CANDEC);
 
-	send_command(SET_COMPINS);			// 0xDA
+	send_command(SET_COMPINS);
 	send_command(COMPINS_VAL);
 
-	send_command(SET_CONTRAST);			// 0x81
+	send_command(SET_CONTRAST);
 	send_command(CONTRAST_VAL);
 
-	send_command(SET_PRE_CHARGE);			// 0xd9
+	send_command(SET_PRE_CHARGE);
 	send_command(PRE_CHARGE_VAL);
 
-	send_command(SET_VCOMDE_SELECT);			// 0xDB
+	send_command(SET_VCOMDE_SELECT);
 	send_command(VCOMDE_SELECT_VAL);
 
-	send_command(DISPLAY_ON);				//--turn on oled panel
+	send_command(DISPLAY_ON);
 }
 
 /* PUBLIC FUNCTIONS */
@@ -355,15 +359,16 @@ void clear_display() {
 	push_display();
 }
 
+//See header file for details
 void fail_screen(void){
 	for (int i=0;i<SCREEN_ROWS; i++) {
 		set_row(i);
 		set_column(0);
 		for (int j=0; j<SCREEN_WIDTH; j++) {
-			if(j % 5){
-				screen_memory[i*SCREEN_WIDTH+j] = 0xff;
+			if(j % FAIL_STRIPE_FREQUENCY){
+				screen_memory[i*SCREEN_WIDTH+j] = FULL_BYTE;
 			} else {
-				screen_memory[i*SCREEN_WIDTH+j] = 0x00;
+				screen_memory[i*SCREEN_WIDTH+j] = EMPTY_BYTE;
 			}
 		}
 	}

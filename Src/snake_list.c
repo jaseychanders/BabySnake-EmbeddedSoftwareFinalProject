@@ -1,3 +1,12 @@
+/**
+ ******************************************************************************
+ * @file           : snake_list.c
+ * @author         : Jasey Chanders
+ * @brief          : A singly linked list variation that stores the snake
+ * @date           : April 30th, 2025
+ ******************************************************************************
+ */
+
 #include <stdlib.h>
 #include "log.h"
 #include "snake_list.h"
@@ -7,15 +16,17 @@ static Node * tail;
 
 static int length = 0;
 
+//See header file for details
 Node * get_snake_head(){
 	return head;
 }
 
+//See header file for details
 Node * get_snake_tail(){
 	return tail;
 }
 
-
+//See header file for details
 Node * add_to_snake_head(uint8_t x, uint8_t y){
 
 	if(length >= MAX_SNAKE_LENGTH){
@@ -41,6 +52,7 @@ Node * add_to_snake_head(uint8_t x, uint8_t y){
 	return head;
 }
 
+//See header file for details
 void remove_from_snake_tail(uint8_t * x_rmv, uint8_t * y_rmv){
 	if(tail != NULL){
 
@@ -58,11 +70,12 @@ void remove_from_snake_tail(uint8_t * x_rmv, uint8_t * y_rmv){
 	}
 }
 
+//See header file for details
 int length_of_snake_list(){
 	return length;
 }
 
-
+//See header file for details
 void print_snake_list(){
 	Node* ptr = tail;
 	while(ptr != NULL){
@@ -72,7 +85,7 @@ void print_snake_list(){
 	LOG("\r\n");
 }
 
-
+//See header file for details
 void delete_snake_list(){
 	while(tail != NULL){
 		Node* old_tail = tail;

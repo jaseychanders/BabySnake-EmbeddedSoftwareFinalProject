@@ -1,3 +1,12 @@
+/**
+ ******************************************************************************
+ * @file           : state_machine_tests.c
+ * @author         : Jasey Chanders
+ * @brief          : Tests for the state machine
+ * @date           : April 30th, 2025
+ ******************************************************************************
+ */
+
 #include "state_machine_tests.h"
 #include "state_machine.h"
 #include "display.h"
@@ -7,6 +16,9 @@
 
 typedef int (*TestFunction)();
 
+/*
+ * @Breif	: Tests goal generation behavior
+ */
 int test_goal_gen(){
 	int success = 1;
 	uint8_t x;
@@ -24,6 +36,9 @@ int test_goal_gen(){
 	return success;
 }
 
+/*
+ * @Breif		: Tests the area in which the snake is considered to be at the goal
+ */
 int test_goal_range(){
 	int success = 1;
 	start_game();
@@ -71,7 +86,9 @@ int test_goal_range(){
 	return success;
 }
 
-
+/*
+ * @Breif		: Function pointers to all tests
+ */
 struct {
     TestFunction function;
     const char *name;
@@ -80,6 +97,11 @@ struct {
 	 { test_goal_range, "test_goal_range" },
 };
 
+/*
+ * @Breif		: Runs all tests on the state machine
+ *
+ * @Return		: The number of tests passed
+ */
 int test_state_machine(){
 
 	 LOG("** Testing State Machine ** \r\n");
@@ -87,7 +109,6 @@ int test_state_machine(){
 	int succeeded_tests = 0;
     int total_tests = sizeof(state_machine_tests) / sizeof(state_machine_tests[0]);
 
-	// Loop through the tests credit ChatGPT
 	for (size_t i = 0; i < total_tests; i++) {
 		if (state_machine_tests[i].function()) {
 			succeeded_tests++;

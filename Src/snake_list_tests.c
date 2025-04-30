@@ -1,3 +1,12 @@
+/**
+ ******************************************************************************
+ * @file           : snake_list_tests.c
+ * @author         : Jasey Chanders
+ * @brief          : Tests for the snake_list data structure
+ * @date           : April 30, 2025
+ ******************************************************************************
+ */
+
 #include "snake_list_tests.h"
 #include "snake_list.h"
 #include "stdlib.h"
@@ -5,8 +14,10 @@
 
 typedef int (*TestFunction)();
 
-
-
+/*
+ * @Breif		: Creates a new snake list and cycles it through adding nodes,
+ * 				: removing nodes and deleting the list
+ */
 int test_one_cycle(){
 	int success = 1;
 	Node * snake_head = NULL;
@@ -25,6 +36,9 @@ int test_one_cycle(){
 	return success;
 }
 
+/*
+ * @Breif		: Tests behavior when number of nodes goes to zero
+ */
 int test_restart_list(){
 	int success = 1;
     Node * snake_head = NULL;
@@ -49,6 +63,10 @@ int test_restart_list(){
 	return success;
 }
 
+
+/*
+ * @Breif		: Tests that the length is returned correctly
+ */
 int test_length(){
 	int success = 1;
 	Node * snake_head = NULL;
@@ -73,6 +91,10 @@ int test_length(){
 	return success;
 }
 
+
+/*
+ * @Breif		: Tests max length boundary condition
+ */
 int test_max_length(){
 	int success = 1;
 	Node * snake_head = NULL;
@@ -89,6 +111,10 @@ int test_max_length(){
 	return success;
 }
 
+
+/*
+ * @Breif		: Tests min length boundary condition
+ */
 int test_min_length(){
 	int success = 1;
 	Node * snake_head = NULL;
@@ -115,6 +141,10 @@ int test_min_length(){
 	return success;
 }
 
+
+/*
+ * @Breif		: Stores function pointers to each test
+ */
 struct {
     TestFunction function;
     const char *name;
@@ -126,6 +156,12 @@ struct {
     { test_min_length, "test_min_length" },
 };
 
+
+/*
+ * @Breif		: Runs each test and reports the results
+ *
+ * @Return		: Number of tests that passed
+ */
 int test_snake_list(){
 
 	 LOG("** Testing Snake List ** \r\n");
@@ -133,7 +169,6 @@ int test_snake_list(){
 	int succeeded_tests = 0;
     int total_tests = sizeof(tests) / sizeof(tests[0]);
 
-	// Loop through the tests credit ChatGPT
 	for (size_t i = 0; i < total_tests; i++) {
 		if (tests[i].function()) {
 			succeeded_tests++;
