@@ -9,7 +9,7 @@ Creates a playable game similar to the classic game snake that can be run on an 
 ![snake image](Documents/Snake%20Image.png)
 
 ## Demo 
-![Demo Video](https://youtu.be/bqw7dEJXwAk)
+https://youtu.be/bqw7dEJXwAk
 
 
 ## Setup
