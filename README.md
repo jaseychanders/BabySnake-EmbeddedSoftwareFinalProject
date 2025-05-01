@@ -6,9 +6,11 @@ Jasey Chanders - April 30th, 2025
 ## Overview
 Creates a playable game similar to the classic game snake that can be run on an STM Nucleo-64 board with a small external screen and 4 external buttons. This code is written in bare-metal C and does not use a HAL. Communication with the screen is done over SPI, buttons trigger game events via interrupts, game play is driven by a table-driven state machine and basic automated tests are provided. 
 
-## Demo 
+![snake image](Documents/Snake%20Image.png)
 
-<insert video link>
+## Demo 
+![Demo Video](https://youtu.be/bqw7dEJXwAk)
+
 
 ## Setup
 
