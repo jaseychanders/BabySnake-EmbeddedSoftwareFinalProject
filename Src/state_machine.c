@@ -11,7 +11,6 @@
 #include "log.h"
 #include "display.h"
 #include "delay.h"
-#include "led.h"
 #include "snake_list.h"
 #include <stdlib.h>
 
@@ -171,7 +170,6 @@ void update_sate_machine(){
 		}
 
 	} else if(current_state == GAME_ACTIVE && within_goal_range(snake_head->x, snake_head->y)){ // Game is active and a goal has been hit
-		LOG("GOAL SCORED IN MAIN\r\n");
 		handle_event(SCORE);
 	}
 }
